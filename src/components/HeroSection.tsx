@@ -1,12 +1,28 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Shield, Database, MessageSquare, TrendingUp } from "lucide-react";
+import { Shield, Database, MessageSquare, TrendingUp, LogIn, UserPlus, Upload, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import heroImage from "@/assets/hero-analytics.jpg";
 import securityIcon from "@/assets/security-icon.jpg";
 import excelIcon from "@/assets/excel-analysis-icon.jpg";
 import chatIcon from "@/assets/chat-ai-icon.jpg";
 
 const HeroSection = () => {
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = "/";
+  };
+
+  const handleGetStarted = () => {
+    if (user) {
+      window.location.hash = "upload";
+    } else {
+      window.location.href = "/auth";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-primary/10">
       {/* Header */}
@@ -18,9 +34,29 @@ const HeroSection = () => {
               AquaQuery
             </span>
           </div>
-          <Button variant="outline" size="sm">
-            Documentation
-          </Button>
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" size="sm">
+              Documentation
+            </Button>
+            
+            {user ? (
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 text-sm">
+                  <User className="w-4 h-4" />
+                  <span className="text-muted-foreground">{user.email}</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" onClick={() => window.location.href = "/auth"}>
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In
+              </Button>
+            )}
+          </div>
         </nav>
       </header>
 
@@ -51,9 +87,19 @@ const HeroSection = () => {
                 variant="hero" 
                 size="lg" 
                 className="text-lg px-8 py-6"
-                onClick={() => window.location.hash = "upload"}
+                onClick={handleGetStarted}
               >
-                Upload Excel File
+                {user ? (
+                  <>
+                    <Upload className="w-5 h-5 mr-2" />
+                    Upload Excel File
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-5 h-5 mr-2" />
+                    Get Started Free
+                  </>
+                )}
               </Button>
               <Button 
                 variant="outline" 
