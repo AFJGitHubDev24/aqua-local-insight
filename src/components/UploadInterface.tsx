@@ -189,19 +189,19 @@ const UploadInterface = ({ onFileUploaded }: UploadInterfaceProps) => {
                 </div>
 
                 <div className="flex justify-center">
-                  <label htmlFor="file-upload">
-                    <Button variant="hero" size="lg" className="cursor-pointer">
-                      <FileSpreadsheet className="w-5 h-5 mr-2" />
-                      Choose File
-                    </Button>
+                  <div className="relative">
                     <input
                       id="file-upload"
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       onChange={handleFileSelect}
-                      className="hidden"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                  </label>
+                    <Button variant="hero" size="lg" className="pointer-events-none">
+                      <FileSpreadsheet className="w-5 h-5 mr-2" />
+                      Choose File
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="flex justify-center space-x-2">
