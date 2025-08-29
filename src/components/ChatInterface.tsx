@@ -1,64 +1,119 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Send, FileSpreadsheet, CheckCircle, BarChart3, Calculator, TrendingUp } from "lucide-react";
+import { Send, FileSpreadsheet, CheckCircle, BarChart3, Calculator, TrendingUp, Loader2 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { ExcelData } from "./ExcelParser";
 
-const sampleData = [
-  { date: "Jan", powerOutput: 45, waveHeight: 2.1 },
-  { date: "Feb", powerOutput: 52, waveHeight: 2.8 },
-  { date: "Mar", powerOutput: 48, waveHeight: 2.3 },
-  { date: "Apr", powerOutput: 61, waveHeight: 3.2 },
-  { date: "May", powerOutput: 55, waveHeight: 2.9 },
-  { date: "Jun", powerOutput: 67, waveHeight: 3.5 },
-];
+interface Message {
+  id: number;
+  type: "user" | "assistant" | "system";
+  content: string;
+  code?: string;
+  result?: string;
+  timestamp: string;
+}
 
-const ChatInterface = () => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: "system",
-      content: "Your file 'Wave_Energy_Data_2024.xlsx' is loaded and ready for analysis. I've identified the following columns: Date, Power Output (kWh), Wave Height (m), Wind Speed (mph), Maintenance Status. What would you like to know?",
-      timestamp: "10:30 AM"
-    },
-    {
-      id: 2,
-      type: "user",
-      content: "What was the average power output for the entire dataset?",
-      timestamp: "10:31 AM"
-    },
-    {
-      id: 3,
-      type: "assistant",
-      content: "The average power output for the entire dataset is **54.7 kWh**.",
-      code: "df['Power Output (kWh)'].mean()",
-      result: "54.7",
-      timestamp: "10:31 AM"
-    },
-    {
-      id: 4,
-      type: "user",
-      content: "Show me the relationship between wave height and power output",
-      timestamp: "10:32 AM"
-    }
-  ]);
+interface ChatInterfaceProps {
+  data?: ExcelData[];
+  columns?: string[];
+  fileName?: string;
+}
 
+const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }: ChatInterfaceProps) => {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  // Initialize chat when data is loaded
+  useEffect(() => {
+    if (data.length > 0 && columns.length > 0) {
+      const initialMessage: Message = {
+        id: 1,
+        type: "system",
+        content: `Your file '${fileName}' is loaded and ready for analysis. I've identified ${columns.length} columns: ${columns.join(', ')}. The dataset contains ${data.length} rows. What would you like to know?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages([initialMessage]);
+    }
+  }, [data, columns, fileName]);
+
+  // Calculate quick stats
+  const quickStats = {
+    totalRows: data.length,
+    totalColumns: columns.length,
+    numericColumns: columns.filter(col => 
+      data.length > 0 && typeof data[0][col] === 'number'
+    ),
+    dateColumns: columns.filter(col => 
+      data.length > 0 && (
+        col.toLowerCase().includes('date') || 
+        col.toLowerCase().includes('time') ||
+        (typeof data[0][col] === 'string' && /\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}/.test(data[0][col]))
+      )
+    )
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return;
     
-    const newMessage = {
+    const userMessage: Message = {
       id: messages.length + 1,
-      type: "user" as const,
+      type: "user",
       content: inputValue,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     
-    setMessages([...messages, newMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInputValue("");
+    setIsLoading(true);
+
+    try {
+      const { data: response, error } = await supabase.functions.invoke('chat-gemini', {
+        body: {
+          message: inputValue,
+          data: data.slice(0, 100), // Send first 100 rows for context
+          context: `File: ${fileName}, Columns: ${columns.join(', ')}, Total rows: ${data.length}`
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const assistantMessage: Message = {
+        id: messages.length + 2,
+        type: "assistant",
+        content: response.response,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+    } catch (error) {
+      console.error('Chat error:', error);
+      toast({
+        title: "Chat Error",
+        description: "Failed to get response from AI. Please try again.",
+        variant: "destructive",
+      });
+
+      const errorMessage: Message = {
+        id: messages.length + 2,
+        type: "assistant",
+        content: "I apologize, but I'm having trouble processing your request right now. Please try again in a moment.",
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -70,17 +125,23 @@ const ChatInterface = () => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <FileSpreadsheet className="w-6 h-6 text-primary" />
-                <span className="font-medium">Wave_Energy_Data_2024.xlsx</span>
+                <span className="font-medium">{fileName}</span>
               </div>
-              <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                Loaded
-              </Badge>
+              {data.length > 0 ? (
+                <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Loaded
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                  No data
+                </Badge>
+              )}
             </div>
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              <span>1,247 rows</span>
+              <span>{data.length} rows</span>
               <span>•</span>
-              <span>5 columns</span>
+              <span>{columns.length} columns</span>
             </div>
           </div>
         </div>
@@ -127,26 +188,16 @@ const ChatInterface = () => {
                   </div>
                 ))}
 
-                {/* Chart Response */}
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] bg-muted text-muted-foreground rounded-2xl p-4 shadow-soft">
-                    <div className="mb-3">Here's a scatter plot showing the relationship between wave height and power output:</div>
-                    <div className="bg-background rounded-lg p-4 border">
-                      <ResponsiveContainer width="100%" height={200}>
-                        <LineChart data={sampleData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis yAxisId="left" />
-                          <YAxis yAxisId="right" orientation="right" />
-                          <Tooltip />
-                          <Bar yAxisId="left" dataKey="powerOutput" fill="hsl(var(--primary))" />
-                          <Line yAxisId="right" type="monotone" dataKey="waveHeight" stroke="hsl(var(--chart-2))" strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted text-muted-foreground rounded-2xl p-4 shadow-soft">
+                      <div className="flex items-center space-x-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>AI is analyzing your data...</span>
+                      </div>
                     </div>
-                    <div className="text-xs opacity-70 mt-2">10:32 AM</div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Input Area */}
@@ -159,8 +210,8 @@ const ChatInterface = () => {
                     className="flex-1"
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   />
-                  <Button onClick={handleSendMessage} variant="analytics" size="icon">
-                    <Send className="w-4 h-4" />
+                  <Button onClick={handleSendMessage} variant="analytics" size="icon" disabled={isLoading || data.length === 0}>
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   </Button>
                 </div>
               </div>
@@ -177,20 +228,20 @@ const ChatInterface = () => {
               </h3>
               <div className="space-y-4">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Avg Power Output</span>
-                  <span className="font-semibold">54.7 kWh</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Max Wave Height</span>
-                  <span className="font-semibold">3.5 m</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-muted-foreground">Total Records</span>
-                  <span className="font-semibold">1,247</span>
+                  <span className="font-semibold">{quickStats.totalRows.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Date Range</span>
-                  <span className="font-semibold">2024</span>
+                  <span className="text-muted-foreground">Total Columns</span>
+                  <span className="font-semibold">{quickStats.totalColumns}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Numeric Columns</span>
+                  <span className="font-semibold">{quickStats.numericColumns.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date Columns</span>
+                  <span className="font-semibold">{quickStats.dateColumns.length}</span>
                 </div>
               </div>
             </Card>
@@ -202,12 +253,13 @@ const ChatInterface = () => {
                 Suggested Queries
               </h3>
               <div className="space-y-2">
-                {[
-                  "Show trends over time",
-                  "Find correlation patterns",
-                  "Identify peak performance days",
-                  "Calculate monthly averages",
-                  "Detect maintenance patterns"
+                {data.length > 0 ? [
+                  "Summarize the data",
+                  "Show me the first 10 rows",
+                  "Calculate basic statistics",
+                  "Find missing values",
+                  "Generate Python code for data analysis",
+                  "Create a data visualization script"
                 ].map((query, index) => (
                   <Button 
                     key={index}
@@ -215,10 +267,15 @@ const ChatInterface = () => {
                     size="sm" 
                     className="w-full justify-start text-left h-auto p-3"
                     onClick={() => setInputValue(query)}
+                    disabled={isLoading}
                   >
                     {query}
                   </Button>
-                ))}
+                )) : (
+                  <div className="text-sm text-muted-foreground text-center p-4">
+                    Upload a file to see suggested queries
+                  </div>
+                )}
               </div>
             </Card>
 

@@ -4,9 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, ArrowRight, Database } from "lucide-react";
+import { parseExcelFile, ExcelData } from "./ExcelParser";
+import { useToast } from "@/hooks/use-toast";
 
 interface UploadInterfaceProps {
-  onFileUploaded: () => void;
+  onFileUploaded: (data: ExcelData[], columns: string[], fileName: string) => void;
 }
 
 const UploadInterface = ({ onFileUploaded }: UploadInterfaceProps) => {
@@ -14,25 +16,54 @@ const UploadInterface = ({ onFileUploaded }: UploadInterfaceProps) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileName, setFileName] = useState("");
+  const { toast } = useToast();
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     setFileName(file.name);
     setIsProcessing(true);
+    setUploadProgress(0);
     
-    // Simulate processing
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
+    try {
+      // Simulate initial progress
+      setUploadProgress(20);
       
-      if (progress >= 100) {
-        clearInterval(interval);
+      // Parse the Excel file
+      const { data, columns, fileName: parsedFileName } = await parseExcelFile(file);
+      setUploadProgress(60);
+      
+      // Validate data
+      if (data.length === 0) {
+        throw new Error('No data rows found in the file');
+      }
+      
+      if (columns.length === 0) {
+        throw new Error('No columns found in the file');
+      }
+      
+      setUploadProgress(90);
+      
+      // Complete processing
+      setTimeout(() => {
+        setUploadProgress(100);
         setTimeout(() => {
           setIsProcessing(false);
-          onFileUploaded();
+          onFileUploaded(data, columns, parsedFileName);
+          toast({
+            title: "File uploaded successfully!",
+            description: `Loaded ${data.length} rows with ${columns.length} columns.`,
+          });
         }, 500);
-      }
-    }, 200);
+      }, 500);
+      
+    } catch (error) {
+      setIsProcessing(false);
+      setUploadProgress(0);
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to process the file",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {

@@ -2,9 +2,13 @@ import { useState, useEffect } from "react";
 import HeroSection from "@/components/HeroSection";
 import UploadInterface from "@/components/UploadInterface";
 import ChatInterface from "@/components/ChatInterface";
+import { ExcelData } from "@/components/ExcelParser";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<"hero" | "upload" | "chat">("hero");
+  const [excelData, setExcelData] = useState<ExcelData[]>([]);
+  const [columns, setColumns] = useState<string[]>([]);
+  const [fileName, setFileName] = useState<string>("");
 
   // Handle URL hash navigation
   useEffect(() => {
@@ -35,12 +39,15 @@ const Index = () => {
     }
   };
 
-  const handleFileUploaded = () => {
+  const handleFileUploaded = (data: ExcelData[], cols: string[], name: string) => {
+    setExcelData(data);
+    setColumns(cols);
+    setFileName(name);
     handleNavigate("chat");
   };
 
   if (currentView === "chat") {
-    return <ChatInterface />;
+    return <ChatInterface data={excelData} columns={columns} fileName={fileName} />;
   }
 
   if (currentView === "upload") {
