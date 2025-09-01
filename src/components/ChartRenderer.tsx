@@ -21,7 +21,7 @@ interface ChartConfig {
   type: "bar" | "line" | "scatter" | "pie";
   title: string;
   xAxis: string;
-  yAxis: string;
+  yAxis: string | string[];
   aggregation?: "count" | "sum" | "avg" | "none";
   filters?: Record<string, any>;
 }
@@ -47,7 +47,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) => {
     if (!data || data.length === 0) return [];
 
     let processedData = [...data];
-
+    
     // Apply filters if any
     if (config.filters) {
       Object.entries(config.filters).forEach(([key, value]) => {
@@ -55,6 +55,9 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) => {
       });
     }
 
+    // Handle multiple yAxis fields
+    const yAxisFields = Array.isArray(config.yAxis) ? config.yAxis : [config.yAxis];
+    
     // Apply aggregation based on type
     if (config.aggregation && config.aggregation !== "none") {
       const grouped = processedData.reduce((acc, item) => {
@@ -67,27 +70,30 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) => {
       }, {} as Record<string, any[]>);
 
       processedData = Object.entries(grouped).map(([key, items]) => {
-        let value: number;
+        const result: any = { [config.xAxis]: key };
         
-        switch (config.aggregation) {
-          case "count":
-            value = (items as any[]).length;
-            break;
-          case "sum":
-            value = (items as any[]).reduce((sum, item) => sum + (Number(item[config.yAxis]) || 0), 0);
-            break;
-          case "avg":
-            const sumValue = (items as any[]).reduce((sum, item) => sum + (Number(item[config.yAxis]) || 0), 0);
-            value = sumValue / (items as any[]).length;
-            break;
-          default:
-            value = Number((items as any[])[0][config.yAxis]) || 0;
-        }
+        yAxisFields.forEach(field => {
+          let value: number;
+          
+          switch (config.aggregation) {
+            case "count":
+              value = (items as any[]).length;
+              break;
+            case "sum":
+              value = (items as any[]).reduce((sum, item) => sum + (Number(item[field]) || 0), 0);
+              break;
+            case "avg":
+              const sumValue = (items as any[]).reduce((sum, item) => sum + (Number(item[field]) || 0), 0);
+              value = sumValue / (items as any[]).length;
+              break;
+            default:
+              value = Number((items as any[])[0][field]) || 0;
+          }
+          
+          result[field] = value;
+        });
 
-        return {
-          [config.xAxis]: key,
-          [config.yAxis]: value,
-        };
+        return result;
       });
     }
 
@@ -97,6 +103,8 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) => {
   const chartData = processData();
 
   const renderChart = () => {
+    const yAxisFields = Array.isArray(config.yAxis) ? config.yAxis : [config.yAxis];
+    
     switch (config.type) {
       case "bar":
         return (
@@ -106,7 +114,13 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) => {
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey={config.yAxis} fill="hsl(var(--primary))" />
+            {yAxisFields.map((field, index) => (
+              <Bar 
+                key={field}
+                dataKey={field} 
+                fill={CHART_COLORS[index % CHART_COLORS.length]} 
+              />
+            ))}
           </BarChart>
         );
 
@@ -118,21 +132,25 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) => {
             <YAxis />
             <Tooltip />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey={config.yAxis} 
-              stroke="hsl(var(--primary))" 
-              strokeWidth={2}
-            />
+            {yAxisFields.map((field, index) => (
+              <Line 
+                key={field}
+                type="monotone" 
+                dataKey={field} 
+                stroke={CHART_COLORS[index % CHART_COLORS.length]} 
+                strokeWidth={2}
+              />
+            ))}
           </LineChart>
         );
 
       case "scatter":
+        const scatterYAxis = Array.isArray(config.yAxis) ? config.yAxis[0] : config.yAxis;
         return (
           <ScatterChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey={config.xAxis} />
-            <YAxis dataKey={config.yAxis} />
+            <YAxis dataKey={scatterYAxis} />
             <Tooltip />
             <Legend />
             <Scatter fill="hsl(var(--primary))" />
@@ -140,11 +158,12 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({ config, data }) => {
         );
 
       case "pie":
+        const pieYAxis = Array.isArray(config.yAxis) ? config.yAxis[0] : config.yAxis;
         return (
           <PieChart>
             <Pie
               data={chartData}
-              dataKey={config.yAxis}
+              dataKey={pieYAxis}
               nameKey={config.xAxis}
               cx="50%"
               cy="50%"

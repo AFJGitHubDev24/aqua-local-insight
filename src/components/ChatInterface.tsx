@@ -92,26 +92,38 @@ const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }:
       let chartConfig = null;
       let cleanContent = response.response;
       
-      // More robust JSON parsing for chart config
-      const chartConfigMatch = response.response.match(/CHART_CONFIG:([\s\S]*?)(?=\n\n|\n[A-Z]|$)/);
-      if (chartConfigMatch) {
-        try {
-          const jsonStr = chartConfigMatch[1].trim();
-          chartConfig = JSON.parse(jsonStr);
-          cleanContent = response.response.replace(/CHART_CONFIG:[\s\S]*?(?=\n\n|\n[A-Z]|$)/, '').trim();
-        } catch (e) {
-          console.error('Failed to parse chart config:', e);
-          // Try alternative parsing for simple cases
-          const simpleMatch = response.response.match(/type:\s*"([^"]+)".*title:\s*"([^"]+)".*xAxis:\s*"([^"]+)".*yAxis:\s*"([^"]+)"/);
-          if (simpleMatch) {
-            chartConfig = {
-              type: simpleMatch[1],
-              title: simpleMatch[2], 
-              xAxis: simpleMatch[3],
-              yAxis: simpleMatch[4]
-            };
-            cleanContent = response.response.replace(/CHART_CONFIG:.*/, '').trim();
+      // Handle different chart config formats
+      const patterns = [
+        /CHART_CONFIG:\s*```json\s*(\{[\s\S]*?\})\s*```/,  // JSON in code blocks
+        /CHART_CONFIG:\s*(\{[\s\S]*?\})/,                   // Plain JSON
+        /```json\s*(\{[\s\S]*?\})\s*```/                    // JSON code blocks anywhere
+      ];
+      
+      for (const pattern of patterns) {
+        const match = response.response.match(pattern);
+        if (match) {
+          try {
+            const jsonStr = match[1].trim();
+            chartConfig = JSON.parse(jsonStr);
+            cleanContent = response.response.replace(match[0], '').trim();
+            break;
+          } catch (e) {
+            console.error('Failed to parse chart config:', e);
+            continue;
           }
+        }
+      }
+      
+      // If still no config found, try simple extraction
+      if (!chartConfig) {
+        const simpleMatch = response.response.match(/type['":\s]*["']([^"']+)["'].*title['":\s]*["']([^"']+)["'].*xAxis['":\s]*["']([^"']+)["'].*yAxis['":\s]*["']([^"']+)["']/);
+        if (simpleMatch) {
+          chartConfig = {
+            type: simpleMatch[1],
+            title: simpleMatch[2], 
+            xAxis: simpleMatch[3],
+            yAxis: simpleMatch[4]
+          };
         }
       }
 
