@@ -8,6 +8,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ExcelData } from "./ExcelParser";
+import ChartRenderer from "./ChartRenderer";
 
 interface Message {
   id: number;
@@ -15,6 +16,7 @@ interface Message {
   content: string;
   code?: string;
   result?: string;
+  chartConfig?: any;
   timestamp: string;
 }
 
@@ -86,10 +88,25 @@ const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }:
         throw error;
       }
 
+      // Parse chart configuration if present
+      let chartConfig = null;
+      let cleanContent = response.response;
+      
+      const chartConfigMatch = response.response.match(/CHART_CONFIG:(\{[^}]+\})/);
+      if (chartConfigMatch) {
+        try {
+          chartConfig = JSON.parse(chartConfigMatch[1]);
+          cleanContent = response.response.replace(/CHART_CONFIG:\{[^}]+\}/, '').trim();
+        } catch (e) {
+          console.error('Failed to parse chart config:', e);
+        }
+      }
+
       const assistantMessage: Message = {
         id: messages.length + 2,
         type: "assistant",
-        content: response.response,
+        content: cleanContent,
+        chartConfig,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
@@ -169,7 +186,13 @@ const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }:
                         ? 'bg-accent text-accent-foreground'
                         : 'bg-muted text-muted-foreground'
                     } rounded-2xl p-4 shadow-soft`}>
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                       <div className="whitespace-pre-wrap">{message.content}</div>
+                      
+                      {message.chartConfig && (
+                        <div className="mt-3">
+                          <ChartRenderer config={message.chartConfig} data={data} />
+                        </div>
+                      )}
                       
                       {message.code && (
                         <div className="mt-3 p-3 bg-background/50 rounded-lg border">
@@ -253,14 +276,15 @@ const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }:
                 Suggested Queries
               </h3>
               <div className="space-y-2">
-                {data.length > 0 ? [
-                  "Summarize the data",
-                  "Show me the first 10 rows",
-                  "Calculate basic statistics",
-                  "Find missing values",
-                  "Generate Python code for data analysis",
-                  "Create a data visualization script"
-                ].map((query, index) => (
+                 {data.length > 0 ? [
+                   "Summarize the data",
+                   "Show me the first 10 rows",
+                   "Calculate basic statistics",
+                   "Find missing values",
+                   "Plot a bar chart of the data",
+                   "Create a line chart visualization",
+                   "Generate Python code for data analysis"
+                 ].map((query, index) => (
                   <Button 
                     key={index}
                     variant="ghost" 
