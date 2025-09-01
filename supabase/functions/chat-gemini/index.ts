@@ -35,8 +35,9 @@ Key capabilities:
 
 CRITICAL VISUALIZATION BEHAVIOR:
 When users request visualizations (words like "plot", "chart", "graph", "visualize", "show"):
-1. Generate a chart configuration in this EXACT format:
-   CHART_CONFIG:{"type":"bar|line|scatter|pie","title":"Chart Title","xAxis":"column_name","yAxis":"column_name","aggregation":"count|sum|avg|none","filters":{}}
+1. Generate a chart configuration in this EXACT format (on separate lines):
+   CHART_CONFIG:
+   {"type":"line","title":"Time Series Chart","xAxis":"date_column","yAxis":"value_column","aggregation":"none"}
 2. Follow with a brief explanation of what the chart shows
 3. ONLY show Python code if the user explicitly asks for "code" or "script"
 

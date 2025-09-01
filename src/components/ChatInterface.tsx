@@ -92,13 +92,26 @@ const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }:
       let chartConfig = null;
       let cleanContent = response.response;
       
-      const chartConfigMatch = response.response.match(/CHART_CONFIG:(\{[^}]+\})/);
+      // More robust JSON parsing for chart config
+      const chartConfigMatch = response.response.match(/CHART_CONFIG:([\s\S]*?)(?=\n\n|\n[A-Z]|$)/);
       if (chartConfigMatch) {
         try {
-          chartConfig = JSON.parse(chartConfigMatch[1]);
-          cleanContent = response.response.replace(/CHART_CONFIG:\{[^}]+\}/, '').trim();
+          const jsonStr = chartConfigMatch[1].trim();
+          chartConfig = JSON.parse(jsonStr);
+          cleanContent = response.response.replace(/CHART_CONFIG:[\s\S]*?(?=\n\n|\n[A-Z]|$)/, '').trim();
         } catch (e) {
           console.error('Failed to parse chart config:', e);
+          // Try alternative parsing for simple cases
+          const simpleMatch = response.response.match(/type:\s*"([^"]+)".*title:\s*"([^"]+)".*xAxis:\s*"([^"]+)".*yAxis:\s*"([^"]+)"/);
+          if (simpleMatch) {
+            chartConfig = {
+              type: simpleMatch[1],
+              title: simpleMatch[2], 
+              xAxis: simpleMatch[3],
+              yAxis: simpleMatch[4]
+            };
+            cleanContent = response.response.replace(/CHART_CONFIG:.*/, '').trim();
+          }
         }
       }
 
