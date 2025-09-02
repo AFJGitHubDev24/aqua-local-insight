@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Download, MessageSquare, Calculator, BarChart3, Shield, Lightbulb, Database } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import dolphinLogo from "@/assets/dolphin-logo.png";
 
 const Documentation = () => {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ const Documentation = () => {
                 Back to App
               </Button>
               <div className="flex items-center space-x-2">
-                <Database className="w-8 h-8 text-primary" />
+                <img src={dolphinLogo} alt="AquaQuery Logo" className="w-8 h-8" />
                 <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                   AquaQuery Documentation
                 </span>
@@ -50,7 +51,7 @@ const Documentation = () => {
         {/* Title Page */}
         <div className="text-center mb-16 page-break-after">
           <div className="mb-8">
-            <Database className="w-24 h-24 text-primary mx-auto mb-6" />
+            <img src={dolphinLogo} alt="AquaQuery Logo" className="w-24 h-24 mx-auto mb-6" />
           </div>
           <h1 className="text-5xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
             AquaQuery: Local Intelligence Analyst
