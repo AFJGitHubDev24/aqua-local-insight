@@ -45,7 +45,14 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.open('/documentation', '_blank')}
+              onClick={() => {
+                const newWindow = window.open('/documentation', '_blank');
+                if (newWindow) {
+                  newWindow.addEventListener('load', () => {
+                    setTimeout(() => newWindow.print(), 500);
+                  });
+                }
+              }}
             >
               Documentation
             </Button>
