@@ -42,7 +42,11 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
                 Get Started
               </Button>
             )}
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.open('/documentation', '_blank')}
+            >
               Documentation
             </Button>
           </div>
