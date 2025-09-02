@@ -36,7 +36,7 @@ const Documentation = () => {
             </div>
             <Button onClick={handlePrint} variant="analytics">
               <Download className="w-4 h-4 mr-2" />
-              Download PDF
+              Save as PDF
             </Button>
           </div>
         </div>

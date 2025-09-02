@@ -47,12 +47,8 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
               variant="outline" 
               size="sm"
               onClick={() => {
-                const newWindow = window.open('/documentation', '_blank');
-                if (newWindow) {
-                  newWindow.addEventListener('load', () => {
-                    setTimeout(() => newWindow.print(), 500);
-                  });
-                }
+                // Simple navigation to documentation page
+                window.open('/documentation', '_blank');
               }}
             >
               Documentation
