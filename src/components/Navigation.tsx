@@ -43,16 +43,6 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
                 Get Started
               </Button>
             )}
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                // Simple navigation to documentation page
-                window.open('/documentation', '_blank');
-              }}
-            >
-              Documentation
-            </Button>
           </div>
         </nav>
       </div>
