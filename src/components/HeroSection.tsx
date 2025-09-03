@@ -35,9 +35,6 @@ const HeroSection = () => {
             </span>
           </div>
           <div className="flex items-center space-x-4">
-            <Button variant="outline" size="sm">
-              Documentation
-            </Button>
             
             {user ? (
               <div className="flex items-center space-x-2">
