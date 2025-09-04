@@ -53,10 +53,22 @@ Guidelines:
 - Reference specific data points from the uploaded file when possible`;
 
     if (data && data.length > 0) {
+      // Smart sampling strategy to avoid token limits
+      const sampleSize = Math.min(50, data.length); // Limit to 50 rows max
+      const firstRows = data.slice(0, Math.min(5, data.length));
+      const lastRows = data.length > 10 ? data.slice(-5) : [];
+      const middleRows = data.length > 20 ? 
+        data.slice(Math.floor(data.length/2) - 10, Math.floor(data.length/2) + 10) : [];
+      
+      const sampleData = [...firstRows, ...middleRows, ...lastRows]
+        .filter((row, index, arr) => arr.findIndex(r => JSON.stringify(r) === JSON.stringify(row)) === index)
+        .slice(0, sampleSize);
+
       systemPrompt += `\n\nCurrent dataset context:
 - Total rows: ${data.length}
 - Columns: ${Object.keys(data[0] || {}).join(', ')}
-- Full dataset available for analysis: ${JSON.stringify(data, null, 2)}`;
+- Representative sample (${sampleData.length} rows from beginning, middle, and end): ${JSON.stringify(sampleData, null, 2)}
+- Note: This is a sample of the full dataset. You can analyze patterns and provide insights based on this representative sample.`;
     }
 
     if (context) {
