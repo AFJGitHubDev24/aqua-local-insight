@@ -56,7 +56,7 @@ Guidelines:
       systemPrompt += `\n\nCurrent dataset context:
 - Total rows: ${data.length}
 - Columns: ${Object.keys(data[0] || {}).join(', ')}
-- Sample data (first 3 rows): ${JSON.stringify(data.slice(0, 3), null, 2)}`;
+- Full dataset available for analysis: ${JSON.stringify(data, null, 2)}`;
     }
 
     if (context) {
