@@ -79,8 +79,8 @@ const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }:
       const { data: response, error } = await supabase.functions.invoke('chat-gemini', {
         body: {
           message: inputValue,
-          data: data.slice(0, 100), // Send first 100 rows for context
-          context: `File: ${fileName}, Columns: ${columns.join(', ')}, Total rows: ${data.length}`
+          data: data, // Send complete dataset
+          context: `File: ${fileName}, Columns: ${columns.join(', ')}, Total rows: ${data.length}, Column types: ${JSON.stringify(quickStats)}`
         }
       });
 
