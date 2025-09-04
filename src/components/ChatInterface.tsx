@@ -61,6 +61,44 @@ const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }:
     )
   };
 
+  // Parse user input for specific data queries
+  const parseUserQuery = (input: string) => {
+    // Parse query patterns for large datasets
+    const patterns = {
+      filter: /(?:filter|where|show.*where)\s+(\w+)\s*(>|<|=|contains)\s*(.+)/i,
+      groupBy: /(?:group by|count by|group)\s+(\w+)/i,
+      topN: /(?:top|bottom)\s+(\d+).*by\s+(\w+)/i,
+      sort: /(?:sort by|order by)\s+(\w+)(?:\s+(asc|desc))?/i,
+      stats: /(?:statistics|stats|calculate|aggregate).*for\s+(\w+)/i
+    };
+
+    for (const [type, pattern] of Object.entries(patterns)) {
+      const match = input.match(pattern);
+      if (match) {
+        switch (type) {
+          case 'filter':
+            return { 
+              queryType: 'filter', 
+              queryParams: { 
+                column: match[1], 
+                operator: match[2] === '>' ? 'greater' : match[2] === '<' ? 'less' : match[2] === '=' ? 'equals' : 'contains', 
+                value: match[3].trim() 
+              } 
+            };
+          case 'groupBy':
+            return { queryType: 'groupBy', queryParams: { column: match[1] } };
+          case 'topN':
+            return { queryType: 'topN', queryParams: { n: parseInt(match[1]), column: match[2] } };
+          case 'sort':
+            return { queryType: 'sort', queryParams: { column: match[1], direction: match[2] || 'asc' } };
+          case 'stats':
+            return { queryType: 'aggregate', queryParams: { column: match[1], functions: ['count', 'avg', 'min', 'max', 'sum'] } };
+        }
+      }
+    }
+    return null;
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
     
@@ -76,11 +114,16 @@ const ChatInterface = ({ data = [], columns = [], fileName = "No file loaded" }:
     setIsLoading(true);
 
     try {
+      // Parse user input for specific queries
+      const queryInfo = parseUserQuery(inputValue.toLowerCase());
+      
       const { data: response, error } = await supabase.functions.invoke('chat-gemini', {
         body: {
           message: inputValue,
-          data: data, // Send complete dataset
-          context: `File: ${fileName}, Columns: ${columns.join(', ')}, Total rows: ${data.length}, Column types: ${JSON.stringify(quickStats)}`
+          data: data,
+          context: `File: ${fileName}, Columns: ${columns.join(', ')}, Total rows: ${data.length}, Column types: ${JSON.stringify(quickStats)}`,
+          queryType: queryInfo?.queryType,
+          queryParams: queryInfo?.queryParams
         }
       });
 
