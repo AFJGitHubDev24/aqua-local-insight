@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import dolphinLogo from "@/assets/dolphin-logo.png";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface NavigationProps {
   currentView: "hero" | "upload" | "chat";
@@ -34,6 +35,7 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
           </div>
           
           <div className="flex items-center space-x-4">
+            <ThemeToggle />
             {currentView === "hero" && (
               <Button 
                 variant="analytics" 
